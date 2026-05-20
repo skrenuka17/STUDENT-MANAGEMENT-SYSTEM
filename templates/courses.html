@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Courses{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Courses</h1>
+    <p class="page-sub">Manage available courses in the system</p>
+  </div>
+  <button class="btn-primary" onclick="openModal('addCourseModal')">+ Add Course</button>
+</div>
+
+<div class="courses-grid">
+  {% for c in courses %}
+  <div class="course-card">
+    <div class="course-icon">📘</div>
+    <div class="course-info">
+      <span class="course-id">ID: {{ c.course_id }}</span>
+      <h3 class="course-name">{{ c.course_name }}</h3>
+    </div>
+    <button class="btn-icon btn-del" onclick="deleteCourse({{ c.course_id }}, '{{ c.course_name }}')">🗑️</button>
+  </div>
+  {% else %}
+  <p class="empty-state">No courses found. Add one!</p>
+  {% endfor %}
+</div>
+
+<!-- ADD COURSE MODAL -->
+<div id="addCourseModal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Add New Course</h3>
+      <button class="modal-close" onclick="closeModal('addCourseModal')">✕</button>
+    </div>
+    <div class="field-group">
+      <label>Course ID</label>
+      <input type="number" id="c_id" placeholder="e.g. 5" class="input-field" />
+    </div>
+    <div class="field-group">
+      <label>Course Name</label>
+      <input type="text" id="c_name" placeholder="e.g. Data Structures" class="input-field" />
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('addCourseModal')">Cancel</button>
+      <button class="btn-primary" onclick="addCourse()">Add Course</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function addCourse() {
+  const fd = new FormData();
+  fd.append("course_id",   document.getElementById("c_id").value);
+  fd.append("course_name", document.getElementById("c_name").value);
+  const res  = await fetch("/courses/add", { method:"POST", body:fd });
+  const data = await res.json();
+  showToast(data.message, data.success);
+  if (data.success) { closeModal("addCourseModal"); setTimeout(()=>location.reload(),700); }
+}
+
+function deleteCourse(cid, name) {
+  if (!confirm(`Delete course "${name}" and all related enrollments?`)) return;
+  const fd = new FormData();
+  fd.append("course_id", cid);
+  fetch("/courses/delete", { method:"POST", body:fd })
+    .then(r=>r.json())
+    .then(d=>{ showToast(d.message, d.success); if(d.success) setTimeout(()=>location.reload(),700); });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Dashboard</h1>
+    <p class="page-sub">Welcome back, <strong>{{ session.user }}</strong> — here's your overview</p>
+  </div>
+  <span class="badge-live">● Live</span>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card" style="--accent:#6c63ff">
+    <div class="stat-icon">👨‍🎓</div>
+    <div class="stat-info">
+      <span class="stat-num">{{ stats.students }}</span>
+      <span class="stat-label">Total Students</span>
+    </div>
+  </div>
+  <div class="stat-card" style="--accent:#00c6a7">
+    <div class="stat-icon">📚</div>
+    <div class="stat-info">
+      <span class="stat-num">{{ stats.courses }}</span>
+      <span class="stat-label">Active Courses</span>
+    </div>
+  </div>
+  <div class="stat-card" style="--accent:#f7971e">
+    <div class="stat-icon">📋</div>
+    <div class="stat-info">
+      <span class="stat-num">{{ stats.enrollments }}</span>
+      <span class="stat-label">Enrollments</span>
+    </div>
+  </div>
+  <div class="stat-card" style="--accent:#e64980">
+    <div class="stat-icon">✅</div>
+    <div class="stat-info">
+      <span class="stat-num">{{ stats.attendance }}</span>
+      <span class="stat-label">Attendance Records</span>
+    </div>
+  </div>
+</div>
+
+<div class="dash-row">
+  <div class="card dash-card">
+    <div class="card-header">
+      <h3>Recently Added Students</h3>
+      <a href="{{ url_for('students') }}" class="btn-link">View All →</a>
+    </div>
+    <table class="data-table">
+      <thead>
+        <tr><th>ID</th><th>Name</th><th>Department</th></tr>
+      </thead>
+      <tbody>
+        {% for s in recent %}
+        <tr>
+          <td><span class="id-badge">{{ s.student_id }}</span></td>
+          <td>{{ s.name }}</td>
+          <td><span class="dept-tag">{{ s.dept }}</span></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="3" class="empty-state">No students yet</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card dash-card">
+    <div class="card-header"><h3>Quick Actions</h3></div>
+    <div class="quick-actions">
+      <a href="{{ url_for('students') }}" class="qa-btn">
+        <span>👨‍🎓</span>
+        <span>Add Student</span>
+      </a>
+      <a href="{{ url_for('enrollments') }}" class="qa-btn">
+        <span>📋</span>
+        <span>Enroll Student</span>
+      </a>
+      <a href="{{ url_for('attendance') }}" class="qa-btn">
+        <span>✅</span>
+        <span>Mark Attendance</span>
+      </a>
+      <a href="{{ url_for('reports') }}" class="qa-btn">
+        <span>📈</span>
+        <span>View Reports</span>
+      </a>
+      <a href="{{ url_for('export_students') }}" class="qa-btn">
+        <span>⬇️</span>
+        <span>Export CSV</span>
+      </a>
+      <a href="{{ url_for('courses') }}" class="qa-btn">
+        <span>📚</span>
+        <span>Manage Courses</span>
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}

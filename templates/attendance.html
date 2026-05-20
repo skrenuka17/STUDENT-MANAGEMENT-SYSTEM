@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Attendance{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Attendance</h1>
+    <p class="page-sub">Mark and review student attendance records</p>
+  </div>
+  <button class="btn-primary" onclick="openModal('markModal')">+ Mark Attendance</button>
+</div>
+
+<div class="card">
+  <div class="card-header"><h3>Attendance Records</h3></div>
+  <table class="data-table">
+    <thead>
+      <tr><th>Student ID</th><th>Name</th><th>Date</th><th>Status</th></tr>
+    </thead>
+    <tbody>
+      {% for a in attendance %}
+      <tr>
+        <td><span class="id-badge">{{ a.student_id }}</span></td>
+        <td>{{ a.name }}</td>
+        <td>{{ a.date }}</td>
+        <td>
+          <span class="status-badge {% if a.status == 'Present' %}status-present{% else %}status-absent{% endif %}">
+            {% if a.status == 'Present' %}✓{% else %}✗{% endif %} {{ a.status }}
+          </span>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" class="empty-state">No attendance records found</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- MARK ATTENDANCE MODAL -->
+<div id="markModal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Mark Attendance</h3>
+      <button class="modal-close" onclick="closeModal('markModal')">✕</button>
+    </div>
+    <div class="field-group">
+      <label>Select Student</label>
+      <select id="a_sid" class="input-field">
+        <option value="">— Select Student —</option>
+        {% for s in students %}
+        <option value="{{ s.student_id }}">{{ s.student_id }} — {{ s.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field-group">
+      <label>Date</label>
+      <input type="date" id="a_date" class="input-field" />
+    </div>
+    <div class="field-group">
+      <label>Status</label>
+      <div class="status-toggle">
+        <label class="toggle-option">
+          <input type="radio" name="a_status" value="Present" checked />
+          <span class="toggle-label present">✓ Present</span>
+        </label>
+        <label class="toggle-option">
+          <input type="radio" name="a_status" value="Absent" />
+          <span class="toggle-label absent">✗ Absent</span>
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('markModal')">Cancel</button>
+      <button class="btn-primary" onclick="markAttendance()">Mark</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Set today's date as default
+document.getElementById("a_date").value = new Date().toISOString().split("T")[0];
+
+async function markAttendance() {
+  const status = document.querySelector('input[name="a_status"]:checked').value;
+  const fd = new FormData();
+  fd.append("student_id", document.getElementById("a_sid").value);
+  fd.append("date",       document.getElementById("a_date").value);
+  fd.append("status",     status);
+  const res  = await fetch("/attendance/mark", { method:"POST", body:fd });
+  const data = await res.json();
+  showToast(data.message, data.success);
+  if (data.success) { closeModal("markModal"); setTimeout(()=>location.reload(),700); }
+}
+</script>
+{% endblock %}

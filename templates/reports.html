@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% block title %}Reports{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Reports</h1>
+    <p class="page-sub">GPA calculator, attendance percentage, toppers and report cards</p>
+  </div>
+</div>
+
+<!-- Calculator Cards -->
+<div class="calc-grid">
+  <div class="card calc-card">
+    <div class="calc-icon">🎯</div>
+    <h3>GPA Calculator</h3>
+    <p>Calculate cumulative GPA for a student based on enrolled grades.</p>
+    <div class="field-group">
+      <label>Student ID</label>
+      <select id="gpa_sid" class="input-field">
+        <option value="">— Select Student —</option>
+        {% for s in students %}
+        <option value="{{ s.student_id }}">{{ s.student_id }} — {{ s.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="btn-primary full-width" onclick="calcGPA()">Calculate GPA</button>
+    <div id="gpa_result" class="result-box hidden"></div>
+    <div class="grade-key">
+      <span>O=10</span><span>A+=9</span><span>A=8</span>
+      <span>B+=7</span><span>B=6</span><span>C=5</span>
+    </div>
+  </div>
+
+  <div class="card calc-card">
+    <div class="calc-icon">📅</div>
+    <h3>Attendance Percentage</h3>
+    <p>View how often a student has attended classes.</p>
+    <div class="field-group">
+      <label>Student ID</label>
+      <select id="att_sid" class="input-field">
+        <option value="">— Select Student —</option>
+        {% for s in students %}
+        <option value="{{ s.student_id }}">{{ s.student_id }} — {{ s.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="btn-primary full-width" onclick="calcAtt()">Calculate Percentage</button>
+    <div id="att_result" class="result-box hidden"></div>
+  </div>
+
+  <div class="card calc-card">
+    <div class="calc-icon">📄</div>
+    <h3>Report Card</h3>
+    <p>View full grade sheet for a student across all enrolled courses.</p>
+    <div class="field-group">
+      <label>Student ID</label>
+      <select id="rc_sid" class="input-field">
+        <option value="">— Select Student —</option>
+        {% for s in students %}
+        <option value="{{ s.student_id }}">{{ s.student_id }} — {{ s.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="btn-primary full-width" onclick="showReportCard()">Show Report Card</button>
+  </div>
+</div>
+
+<!-- Report Card Output -->
+<div id="report_card_section" class="card hidden">
+  <div class="card-header">
+    <h3>Report Card</h3>
+    <button class="btn-secondary" onclick="document.getElementById('report_card_section').classList.add('hidden')">Close</button>
+  </div>
+  <table class="data-table" id="rcTable">
+    <thead>
+      <tr><th>Student ID</th><th>Name</th><th>Course</th><th>Grade</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<!-- Toppers Section -->
+<div class="card">
+  <div class="card-header"><h3>🏆 Top Performers</h3></div>
+  <table class="data-table">
+    <thead>
+      <tr><th>Student ID</th><th>Name</th><th>Course</th><th>Grade</th></tr>
+    </thead>
+    <tbody>
+      {% for t in toppers %}
+      <tr>
+        <td><span class="id-badge">{{ t.student_id }}</span></td>
+        <td>{{ t.name }}</td>
+        <td>{{ t.course_name }}</td>
+        <td><span class="grade-badge grade-{{ t.grade | replace('+','p') | replace(' ','') }}">{{ t.grade }}</span></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" class="empty-state">No graded records yet</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Full Enrollment Grades -->
+<div class="card">
+  <div class="card-header">
+    <h3>All Grades</h3>
+    <a href="{{ url_for('export_enrollments') }}" class="btn-secondary">⬇ Export</a>
+  </div>
+  <table class="data-table">
+    <thead>
+      <tr><th>Student ID</th><th>Name</th><th>Dept</th><th>Course</th><th>Grade</th></tr>
+    </thead>
+    <tbody>
+      {% for e in enrollments %}
+      <tr>
+        <td><span class="id-badge">{{ e.student_id }}</span></td>
+        <td>{{ e.name }}</td>
+        <td><span class="dept-tag">{{ e.dept }}</span></td>
+        <td>{{ e.course_name }}</td>
+        <td><span class="grade-badge grade-{{ e.grade | replace('+','p') | replace(' ','') }}">{{ e.grade }}</span></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="empty-state">No enrollment data</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function calcGPA() {
+  const sid = document.getElementById("gpa_sid").value;
+  if (!sid) { showToast("Select a student", false); return; }
+  const res  = await fetch(`/reports/gpa?student_id=${sid}`);
+  const data = await res.json();
+  const box  = document.getElementById("gpa_result");
+  box.classList.remove("hidden");
+  if (data.success) {
+    box.innerHTML = `<span class="big-result">${data.gpa}</span><span class="result-label">GPA (out of 10)</span>`;
+    box.className = "result-box result-success";
+  } else {
+    box.innerHTML = data.message;
+    box.className = "result-box result-error";
+  }
+}
+
+async function calcAtt() {
+  const sid = document.getElementById("att_sid").value;
+  if (!sid) { showToast("Select a student", false); return; }
+  const res  = await fetch(`/reports/attendance_pct?student_id=${sid}`);
+  const data = await res.json();
+  const box  = document.getElementById("att_result");
+  box.classList.remove("hidden");
+  if (data.success) {
+    const color = data.percentage >= 75 ? "result-success" : "result-warn";
+    box.innerHTML = `<span class="big-result">${data.percentage}%</span>
+      <span class="result-label">${data.present} present / ${data.total} total</span>`;
+    box.className = `result-box ${color}`;
+  } else {
+    box.innerHTML = data.message;
+    box.className = "result-box result-error";
+  }
+}
+
+async function showReportCard() {
+  const sid = document.getElementById("rc_sid").value;
+  if (!sid) { showToast("Select a student", false); return; }
+  const res  = await fetch(`/students/search?student_id=${sid}`);
+  // use enrollments data from the page filtered client-side
+  const allRows = document.querySelectorAll("#rcTable tbody tr");
+  // fetch fresh via a hidden approach — just filter from enrollments table
+  const all = [...document.querySelectorAll(".data-table:last-of-type tbody tr")]
+    .filter(r => r.querySelector(".id-badge")?.textContent.trim() == sid);
+
+  const section = document.getElementById("report_card_section");
+  const tbody   = document.querySelector("#rcTable tbody");
+  tbody.innerHTML = "";
+
+  // Instead, refetch from enrollments table rows on page
+  const allEnrollRows = [...document.querySelectorAll(".data-table")];
+  // Simple: reload section with API call
+  const r2 = await fetch(`/reports/gpa?student_id=${sid}`); // just to confirm student has data
+  // We'll filter from full enrollments shown on page
+  const tables = document.querySelectorAll(".data-table");
+  let found = false;
+  tables.forEach(t => {
+    t.querySelectorAll("tbody tr").forEach(row => {
+      const idBadge = row.querySelector(".id-badge");
+      if (idBadge && idBadge.textContent.trim() == sid) {
+        const cells = row.querySelectorAll("td");
+        if (cells.length >= 5) {
+          tbody.innerHTML += `<tr>
+            <td><span class="id-badge">${cells[0].textContent.trim()}</span></td>
+            <td>${cells[1].textContent.trim()}</td>
+            <td>${cells[3].textContent.trim()}</td>
+            <td>${cells[4].innerHTML}</td></tr>`;
+          found = true;
+        }
+      }
+    });
+  });
+
+  if (!found) {
+    tbody.innerHTML = `<tr><td colspan="4" class="empty-state">No records for this student</td></tr>`;
+  }
+  section.classList.remove("hidden");
+  section.scrollIntoView({ behavior:"smooth" });
+}
+</script>
+{% endblock %}

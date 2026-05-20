@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% block title %}Enrollments{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Enrollments</h1>
+    <p class="page-sub">Manage student-course enrollments and grades</p>
+  </div>
+  <button class="btn-primary" onclick="openModal('enrollModal')">+ Enroll Student</button>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h3>All Enrollments</h3>
+    <a href="{{ url_for('export_enrollments') }}" class="btn-secondary">⬇ Export CSV</a>
+  </div>
+  <table class="data-table" id="enrollTable">
+    <thead>
+      <tr>
+        <th>Student ID</th><th>Name</th><th>Dept</th>
+        <th>Course</th><th>Grade</th><th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in enrollments %}
+      <tr>
+        <td><span class="id-badge">{{ e.student_id }}</span></td>
+        <td>{{ e.name }}</td>
+        <td><span class="dept-tag">{{ e.dept }}</span></td>
+        <td>{{ e.course_name }}</td>
+        <td>
+          <span class="grade-badge grade-{{ e.grade | replace('+','p') | replace(' ','') }}">
+            {{ e.grade }}
+          </span>
+        </td>
+        <td class="action-btns">
+          <button class="btn-icon btn-edit"
+            onclick='openGradeModal({{ e.student_id }}, {{ e.course_id }}, "{{ e.name }}", "{{ e.course_name }}")'>
+            📝
+          </button>
+          <button class="btn-icon btn-del"
+            onclick="removeEnrollment({{ e.student_id }}, {{ e.course_id }}, '{{ e.name }}')">
+            🗑️
+          </button>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="empty-state">No enrollments found</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- ENROLL MODAL -->
+<div id="enrollModal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Enroll Student in Course</h3>
+      <button class="modal-close" onclick="closeModal('enrollModal')">✕</button>
+    </div>
+    <div class="field-group">
+      <label>Select Student</label>
+      <select id="e_sid" class="input-field">
+        <option value="">— Select Student —</option>
+        {% for s in students %}
+        <option value="{{ s.student_id }}">{{ s.student_id }} — {{ s.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field-group">
+      <label>Select Course</label>
+      <select id="e_cid" class="input-field">
+        <option value="">— Select Course —</option>
+        {% for c in courses %}
+        <option value="{{ c.course_id }}">{{ c.course_id }} — {{ c.course_name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field-group">
+      <label>Grade (Optional)</label>
+      <select id="e_grade" class="input-field">
+        <option value="">Not Assigned</option>
+        <option>O</option><option>A+</option><option>A</option>
+        <option>B+</option><option>B</option><option>C</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('enrollModal')">Cancel</button>
+      <button class="btn-primary" onclick="enrollStudent()">Enroll</button>
+    </div>
+  </div>
+</div>
+
+<!-- UPDATE GRADE MODAL -->
+<div id="gradeModal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Update Grade</h3>
+      <button class="modal-close" onclick="closeModal('gradeModal')">✕</button>
+    </div>
+    <input type="hidden" id="g_sid" />
+    <input type="hidden" id="g_cid" />
+    <div class="field-group">
+      <label>Student</label>
+      <input type="text" id="g_student_display" class="input-field" disabled />
+    </div>
+    <div class="field-group">
+      <label>Course</label>
+      <input type="text" id="g_course_display" class="input-field" disabled />
+    </div>
+    <div class="field-group">
+      <label>New Grade</label>
+      <select id="g_grade" class="input-field">
+        <option value="Not Assigned">Not Assigned</option>
+        <option>O</option><option>A+</option><option>A</option>
+        <option>B+</option><option>B</option><option>C</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('gradeModal')">Cancel</button>
+      <button class="btn-primary" onclick="updateGrade()">Save Grade</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function enrollStudent() {
+  const fd = new FormData();
+  fd.append("student_id", document.getElementById("e_sid").value);
+  fd.append("course_id",  document.getElementById("e_cid").value);
+  fd.append("grade",      document.getElementById("e_grade").value);
+  const res  = await fetch("/enrollments/add", { method:"POST", body:fd });
+  const data = await res.json();
+  showToast(data.message, data.success);
+  if (data.success) { closeModal("enrollModal"); setTimeout(()=>location.reload(),700); }
+}
+
+function removeEnrollment(sid, cid, name) {
+  if (!confirm(`Remove enrollment of ${name} from this course?`)) return;
+  const fd = new FormData();
+  fd.append("student_id", sid);
+  fd.append("course_id",  cid);
+  fetch("/enrollments/remove", { method:"POST", body:fd })
+    .then(r=>r.json())
+    .then(d=>{ showToast(d.message, d.success); if(d.success) setTimeout(()=>location.reload(),700); });
+}
+
+function openGradeModal(sid, cid, studentName, courseName) {
+  document.getElementById("g_sid").value = sid;
+  document.getElementById("g_cid").value = cid;
+  document.getElementById("g_student_display").value = `${sid} — ${studentName}`;
+  document.getElementById("g_course_display").value  = courseName;
+  openModal("gradeModal");
+}
+
+async function updateGrade() {
+  const fd = new FormData();
+  fd.append("student_id", document.getElementById("g_sid").value);
+  fd.append("course_id",  document.getElementById("g_cid").value);
+  fd.append("grade",      document.getElementById("g_grade").value);
+  const res  = await fetch("/enrollments/update_grade", { method:"POST", body:fd });
+  const data = await res.json();
+  showToast(data.message, data.success);
+  if (data.success) { closeModal("gradeModal"); setTimeout(()=>location.reload(),700); }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+{% block title %}Students{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Students</h1>
+    <p class="page-sub">Add, search, update and manage student records</p>
+  </div>
+  <button class="btn-primary" onclick="openModal('addModal')">+ Add Student</button>
+</div>
+
+<!-- Search bar -->
+<div class="card search-bar-card">
+  <div class="search-row">
+    <input type="text" id="searchId" placeholder="Search by Student ID…" class="input-field" />
+    <input type="text" id="searchName" placeholder="Search by Name…" class="input-field" />
+    <button class="btn-primary" onclick="searchStudents()">Search</button>
+    <button class="btn-secondary" onclick="loadAllStudents()">Show All</button>
+  </div>
+</div>
+
+<!-- Students Table -->
+<div class="card">
+  <div class="card-header">
+    <h3>All Students</h3>
+    <div class="header-actions">
+      <a href="{{ url_for('export_students') }}" class="btn-secondary">⬇ Export CSV</a>
+      <button class="btn-secondary" onclick="openModal('importModal')">⬆ Import CSV</button>
+    </div>
+  </div>
+  <table class="data-table" id="studentsTable">
+    <thead>
+      <tr><th>Student ID</th><th>Name</th><th>Department</th><th>Actions</th></tr>
+    </thead>
+    <tbody>
+      {% for s in students %}
+      <tr>
+        <td><span class="id-badge">{{ s.student_id }}</span></td>
+        <td>{{ s.name }}</td>
+        <td><span class="dept-tag">{{ s.dept }}</span></td>
+        <td class="action-btns">
+          <button class="btn-icon btn-edit" onclick='openEdit({{ s.student_id }}, "{{ s.name }}", "{{ s.dept }}")'>✏️</button>
+          <button class="btn-icon btn-del" onclick="confirmDelete({{ s.student_id }})">🗑️</button>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" class="empty-state">No students found</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- ADD MODAL -->
+<div id="addModal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Add New Student</h3>
+      <button class="modal-close" onclick="closeModal('addModal')">✕</button>
+    </div>
+    <div class="field-group">
+      <label>Student ID</label>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="add_id" placeholder="e.g. 1001" class="input-field" style="flex:1" />
+        <button class="btn-secondary" onclick="autoGenId()">Auto Generate</button>
+      </div>
+    </div>
+    <div class="field-group">
+      <label>Full Name</label>
+      <input type="text" id="add_name" placeholder="Student name" class="input-field" />
+    </div>
+    <div class="field-group">
+      <label>Department</label>
+      <input type="text" id="add_dept" placeholder="e.g. Computer Science" class="input-field" />
+    </div>
+    <div class="field-group">
+      <label>Enroll in Course (Optional)</label>
+      <select id="add_course" class="input-field">
+        <option value="">— None —</option>
+        {% for c in courses %}
+        <option value="{{ c.course_id }}">{{ c.course_id }} - {{ c.course_name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field-group">
+      <label>Grade (Optional)</label>
+      <select id="add_grade" class="input-field">
+        <option value="">Not Assigned</option>
+        <option>O</option><option>A+</option><option>A</option>
+        <option>B+</option><option>B</option><option>C</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('addModal')">Cancel</button>
+      <button class="btn-primary" onclick="addStudent()">Add Student</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div id="editModal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Edit Student</h3>
+      <button class="modal-close" onclick="closeModal('editModal')">✕</button>
+    </div>
+    <input type="hidden" id="edit_id" />
+    <div class="field-group">
+      <label>Student ID</label>
+      <input type="text" id="edit_id_display" class="input-field" disabled />
+    </div>
+    <div class="field-group">
+      <label>Full Name</label>
+      <input type="text" id="edit_name" class="input-field" />
+    </div>
+    <div class="field-group">
+      <label>Department</label>
+      <input type="text" id="edit_dept" class="input-field" />
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('editModal')">Cancel</button>
+      <button class="btn-primary" onclick="updateStudent()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT MODAL -->
+<div id="importModal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Import Students from CSV</h3>
+      <button class="modal-close" onclick="closeModal('importModal')">✕</button>
+    </div>
+    <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:1rem">
+      CSV must have headers: <code>Student ID, Name, Department</code>
+    </p>
+    <div class="field-group">
+      <label>Select CSV File</label>
+      <input type="file" id="csvFile" accept=".csv" class="input-field" />
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('importModal')">Cancel</button>
+      <button class="btn-primary" onclick="importCSV()">Import</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function loadAllStudents() {
+  location.reload();
+}
+
+async function searchStudents() {
+  const sid  = document.getElementById("searchId").value.trim();
+  const name = document.getElementById("searchName").value.trim();
+  const res  = await fetch(`/students/search?student_id=${encodeURIComponent(sid)}&name=${encodeURIComponent(name)}`);
+  const data = await res.json();
+  const tbody = document.querySelector("#studentsTable tbody");
+  tbody.innerHTML = "";
+  if (data.students.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" class="empty-state">No students found</td></tr>`;
+    return;
+  }
+  data.students.forEach(s => {
+    tbody.innerHTML += `<tr>
+      <td><span class="id-badge">${s.student_id}</span></td>
+      <td>${s.name}</td>
+      <td><span class="dept-tag">${s.dept}</span></td>
+      <td class="action-btns">
+        <button class="btn-icon btn-edit" onclick='openEdit(${s.student_id},"${s.name}","${s.dept}")'>✏️</button>
+        <button class="btn-icon btn-del" onclick="confirmDelete(${s.student_id})">🗑️</button>
+      </td></tr>`;
+  });
+}
+
+async function autoGenId() {
+  const res = await fetch("/students/generate_id");
+  const data = await res.json();
+  document.getElementById("add_id").value = data.new_id;
+}
+
+async function addStudent() {
+  const fd = new FormData();
+  fd.append("student_id", document.getElementById("add_id").value);
+  fd.append("name",       document.getElementById("add_name").value);
+  fd.append("dept",       document.getElementById("add_dept").value);
+  fd.append("course_id",  document.getElementById("add_course").value);
+  fd.append("grade",      document.getElementById("add_grade").value);
+
+  const res  = await fetch("/students/add", { method:"POST", body:fd });
+  const data = await res.json();
+  showToast(data.message, data.success);
+  if (data.success) { closeModal("addModal"); setTimeout(()=>location.reload(),700); }
+}
+
+function openEdit(id, name, dept) {
+  document.getElementById("edit_id").value         = id;
+  document.getElementById("edit_id_display").value = id;
+  document.getElementById("edit_name").value        = name;
+  document.getElementById("edit_dept").value        = dept;
+  openModal("editModal");
+}
+
+async function updateStudent() {
+  const fd = new FormData();
+  fd.append("student_id", document.getElementById("edit_id").value);
+  fd.append("name",       document.getElementById("edit_name").value);
+  fd.append("dept",       document.getElementById("edit_dept").value);
+  const res  = await fetch("/students/update", { method:"POST", body:fd });
+  const data = await res.json();
+  showToast(data.message, data.success);
+  if (data.success) { closeModal("editModal"); setTimeout(()=>location.reload(),700); }
+}
+
+function confirmDelete(sid) {
+  if (!confirm(`Delete student ${sid} and all related records?`)) return;
+  const fd = new FormData();
+  fd.append("student_id", sid);
+  fetch("/students/delete", { method:"POST", body:fd })
+    .then(r=>r.json())
+    .then(d=>{ showToast(d.message, d.success); if(d.success) setTimeout(()=>location.reload(),700); });
+}
+
+async function importCSV() {
+  const file = document.getElementById("csvFile").files[0];
+  if (!file) { showToast("Please select a CSV file", false); return; }
+  const fd = new FormData();
+  fd.append("csv_file", file);
+  const res  = await fetch("/import/students", { method:"POST", body:fd });
+  const data = await res.json();
+  showToast(data.message, data.success);
+  if (data.success) { closeModal("importModal"); setTimeout(()=>location.reload(),900); }
+}
+</script>
+{% endblock %}
