@@ -17,6 +17,19 @@ def get_db():
 
 
 def init_db():
+    conn=sqlite3.connect("students.db")
+    conn.execute("""
+                 CREATE TABLE IF NOT EXISTS Admins(
+                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                 username TEXT UNIQUE,
+                 password TEXT
+                 )
+                 """)
+    conn.execute("""
+                 INSERT OR IGNORE INTO Admins (username,
+                 password)
+                 VALUES ('admin','admin123')
+                 """)
     conn = get_db()
     cursor = conn.cursor()
     schema_path = os.path.join(os.path.dirname(__file__), "database", "schema.sql")
@@ -503,6 +516,7 @@ def import_students():
 
 if __name__ == "__main__":
     init_db()
+    
     app.run(
     host="0.0.0.0",
     port=int(os.environ.get("PORT",5000))
