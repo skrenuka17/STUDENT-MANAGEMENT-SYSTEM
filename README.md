@@ -97,3 +97,4 @@ http://localhost:5000
 4. Machine Learning  
 
 You can add more courses from the Courses page.
+THIS IS MY FIRST AND FOREMOST.
